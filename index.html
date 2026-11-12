@@ -31,11 +31,12 @@
   <form id="lf" class="c w-full max-w-sm shadow-2xl">
     <h1 class="text-2xl font-bold">Clínica Escola</h1>
     <p class="text-sm text-slate-500">Portal de Gestão Acadêmica &amp; Saúde</p>
-    <label class="l">E-mail</label>
-    <input id="em" type="email" required class="i" autocomplete="username">
+    <label class="l">Usuário</label>
+    <input id="em" required class="i" autocomplete="username" placeholder="ex: maria.silva">
     <label class="l">Senha</label>
     <input id="pw" type="password" required class="i" autocomplete="current-password">
-    <button class="b w-full mt-5">Entrar</button>
+    <button id="lb" class="b w-full mt-5">Entrar</button>
+    <p class="text-xs text-center text-slate-500 mt-4"><span id="lt">Não tem conta?</span> <a href="#" id="ls" class="text-sky-600 font-medium">Criar conta</a></p>
   </form>
 </div>
 
@@ -180,15 +181,38 @@ function toast(msg, erro) {
 }
 
 // ---- Login ----
+let criando = false;
+$('ls').onclick = e => {
+  e.preventDefault(); criando = !criando;
+  $('lb').textContent = criando ? 'Criar conta' : 'Entrar';
+  $('lt').textContent = criando ? 'Já tem conta?' : 'Não tem conta?';
+  $('ls').textContent = criando ? 'Entrar' : 'Criar conta';
+  $('pw').autocomplete = criando ? 'new-password' : 'current-password';
+};
+const paraEmail = u => u.includes('@') ? u : u + '@clinicaescola.com';
 $('lf').onsubmit = async e => {
   e.preventDefault();
-  const {error} = await db.auth.signInWithPassword({email: $('em').value, password: $('pw').value});
-  if (error) return toast('Login inválido. Verifique e-mail e senha.', 1);
+  const u = $('em').value.trim().toLowerCase(), senha = $('pw').value;
+  if (!u.includes('@') && !/^[a-z0-9_.]{3,20}$/.test(u)) return toast('Usuário: 3 a 20 caracteres (letras, números, _ ou .), sem espaços.', 1);
+  if (criando) {
+    if (senha.length < 6) return toast('A senha precisa ter pelo menos 6 caracteres.', 1);
+    const {data, error} = await db.auth.signUp({email: paraEmail(u), password: senha});
+    if (error) return toast(/registered/i.test(error.message) ? 'Esse usuário já existe.' : error.message, 1);
+    if (!data.session) return toast('Conta criada. Agora é só entrar.');
+    return entrar();
+  }
+  const {error} = await db.auth.signInWithPassword({email: paraEmail(u), password: senha});
+  if (error) return toast('Usuário ou senha inválidos.', 1);
   entrar();
 };
 async function entrar() {
   const {data} = await db.auth.getUser();
-  $('ue').textContent = data.user?.email || '';
+  const {data: perfil} = await db.from('perfis').select('aprovado').eq('id', data.user.id).maybeSingle();
+  if (!perfil?.aprovado) {
+    await db.auth.signOut();
+    return toast('Conta criada! Aguarde o administrador liberar o seu acesso.', 1);
+  }
+  $('ue').textContent = (data.user.email || '').split('@')[0];
   $('login').classList.add('hidden'); $('app').classList.remove('hidden');
   carregar();
 }
