@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Clínica Escola</title>
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<style>
+  .i{width:100%;padding:.55rem .75rem;border:1px solid #e2e8f0;border-radius:.75rem;background:#f8fafc;font-size:.875rem}
+  .i:focus{outline:2px solid #0ea5e9;background:#fff}
+  .b{padding:.6rem 1rem;border-radius:.75rem;color:#fff;font-weight:500;font-size:.875rem;background:#0284c7}
+  .b:hover{background:#0369a1}
+  .l{display:block;font-size:.7rem;font-weight:600;text-transform:uppercase;color:#475569;margin:.7rem 0 .2rem}
+  .c{background:#fff;border:1px solid #e2e8f0;border-radius:1rem;padding:1.25rem}
+  th,td{text-align:left;padding:.6rem .75rem}
+  th{color:#64748b;font-weight:500}
+  tbody tr+tr{border-top:1px solid #f1f5f9}
+  .nav{display:block;width:100%;text-align:left;padding:.65rem 1rem;border-radius:.75rem;font-size:.875rem;white-space:nowrap}
+  .nav:hover{background:#1e293b}
+  .nav.on{background:#0284c7;color:#fff}
+  @media print{aside,.noprint{display:none!important}}
+</style>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans">
+
+<div id="toasts" class="fixed top-4 right-4 z-50 space-y-2"></div>
+
+<!-- LOGIN -->
+<div id="login" class="min-h-screen grid place-items-center p-4 bg-gradient-to-br from-sky-900 to-teal-900">
+  <form id="lf" class="c w-full max-w-sm shadow-2xl">
+    <h1 class="text-2xl font-bold">Clínica Escola</h1>
+    <p class="text-sm text-slate-500">Portal de Gestão Acadêmica &amp; Saúde</p>
+    <label class="l">E-mail</label>
+    <input id="em" type="email" required class="i" autocomplete="username">
+    <label class="l">Senha</label>
+    <input id="pw" type="password" required class="i" autocomplete="current-password">
+    <button class="b w-full mt-5">Entrar</button>
+  </form>
+</div>
+
+<!-- APP -->
+<div id="app" class="hidden min-h-screen md:flex">
+  <aside class="md:w-60 bg-slate-900 text-slate-300 p-3 shrink-0 md:min-h-screen flex md:flex-col gap-1 overflow-x-auto">
+    <h2 class="text-white font-bold p-3 hidden md:block">Clínica Escola</h2>
+    <button class="nav on" data-t="dash">Painel</button>
+    <button class="nav" data-t="esp">Especialidades</button>
+    <button class="nav" data-t="prof">Profissionais</button>
+    <button class="nav" data-t="pac">Pacientes</button>
+    <button class="nav" data-t="atd">Atendimentos</button>
+    <div class="md:mt-auto text-xs p-3">
+      <p id="ue" class="truncate text-slate-400"></p>
+      <button onclick="sair()" class="text-red-400 mt-1">Sair</button>
+    </div>
+  </aside>
+
+  <main class="flex-1 p-4 md:p-8 space-y-6 min-w-0">
+
+    <!-- PAINEL -->
+    <section id="t-dash" class="tab space-y-4">
+      <h2 class="text-2xl font-bold">Painel</h2>
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="c"><p class="text-xs text-slate-500">Pacientes</p><p id="k1" class="text-3xl font-bold">0</p></div>
+        <div class="c"><p class="text-xs text-slate-500">Profissionais</p><p id="k2" class="text-3xl font-bold">0</p></div>
+        <div class="c"><p class="text-xs text-slate-500">Atendimentos hoje</p><p id="k3" class="text-3xl font-bold">0</p></div>
+        <div class="c"><p class="text-xs text-slate-500">Agendados</p><p id="k4" class="text-3xl font-bold">0</p></div>
+      </div>
+      <div class="c overflow-x-auto">
+        <h3 class="font-semibold mb-2">Próximos atendimentos</h3>
+        <table class="w-full text-sm"><thead><tr><th>Quando</th><th>Paciente</th><th>Especialidade</th><th>Profissional</th></tr></thead><tbody id="l-prox"></tbody></table>
+      </div>
+    </section>
+
+    <!-- ESPECIALIDADES -->
+    <section id="t-esp" class="tab hidden space-y-4">
+      <h2 class="text-2xl font-bold">Especialidades</h2>
+      <div class="grid lg:grid-cols-3 gap-6">
+        <form class="c h-fit" onsubmit="salvar(event,'especialidades','Especialidade cadastrada!','Essa especialidade já existe.')">
+          <h3 class="font-semibold">Nova especialidade</h3>
+          <label class="l">Nome</label><input name="nome" required class="i">
+          <label class="l">Unidade / Bloco</label><input name="unidade" required class="i">
+          <label class="l">Descrição</label><textarea name="descricao" rows="3" class="i"></textarea>
+          <button class="b w-full mt-4">Salvar</button>
+        </form>
+        <div class="c lg:col-span-2 overflow-x-auto">
+          <table class="w-full text-sm"><thead><tr><th>Especialidade</th><th>Unidade</th><th>Descrição</th><th></th></tr></thead><tbody id="l-esp"></tbody></table>
+        </div>
+      </div>
+    </section>
+
+    <!-- PROFISSIONAIS -->
+    <section id="t-prof" class="tab hidden space-y-4">
+      <h2 class="text-2xl font-bold">Professores, Preceptores e Estudantes</h2>
+      <div class="grid lg:grid-cols-3 gap-6">
+        <form class="c h-fit" onsubmit="salvar(event,'profissionais','Profissional cadastrado!')">
+          <h3 class="font-semibold">Novo profissional</h3>
+          <label class="l">Nome</label><input name="nome" required class="i">
+          <label class="l">Registro (CRM, matrícula...)</label><input name="registro" required class="i">
+          <label class="l">Função</label>
+          <select name="tipo" class="i"><option>Professor</option><option>Preceptor</option><option>Médico</option><option>Estudante</option></select>
+          <label class="l">Especialidade</label><select name="especialidade_id" id="s-prof-esp" required class="i"></select>
+          <label class="l">Horário</label><input name="horario" placeholder="Ex: Segunda e Quarta - 08h às 12h" class="i">
+          <button class="b w-full mt-4">Salvar</button>
+        </form>
+        <div id="g-prof" class="lg:col-span-2 grid sm:grid-cols-2 gap-4 content-start"></div>
+      </div>
+    </section>
+
+    <!-- PACIENTES -->
+    <section id="t-pac" class="tab hidden space-y-4">
+      <h2 class="text-2xl font-bold">Pacientes</h2>
+      <div class="grid lg:grid-cols-3 gap-6">
+        <form class="c h-fit" onsubmit="salvarPaciente(event)">
+          <h3 class="font-semibold">Novo paciente</h3>
+          <label class="l">Nome completo</label><input name="nome" required class="i">
+          <label class="l">CPF</label><input name="cpf" required placeholder="000.000.000-00" maxlength="14" oninput="this.value=maskCpf(this.value)" class="i">
+          <label class="l">Data de nascimento</label><input name="data_nascimento" type="date" required class="i">
+          <label class="l">Telefone</label><input name="telefone" placeholder="(86) 90000-0000" class="i">
+          <label class="l">Endereço</label><textarea name="endereco" rows="2" required class="i"></textarea>
+          <button class="b w-full mt-4">Cadastrar</button>
+        </form>
+        <div class="c lg:col-span-2 overflow-x-auto">
+          <input id="q" oninput="renderPac()" placeholder="Buscar por nome ou CPF..." class="i mb-3 sm:w-72">
+          <table class="w-full text-sm"><thead><tr><th>Nome</th><th>CPF</th><th>Idade</th><th>Telefone</th><th></th></tr></thead><tbody id="l-pac"></tbody></table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ATENDIMENTOS -->
+    <section id="t-atd" class="tab hidden space-y-4">
+      <div class="flex justify-between items-center">
+        <h2 class="text-2xl font-bold">Agenda de atendimentos</h2>
+        <button onclick="window.print()" class="b noprint">Imprimir agenda</button>
+      </div>
+      <div class="grid lg:grid-cols-3 gap-6">
+        <form class="c h-fit noprint" onsubmit="salvarAtendimento(event)">
+          <h3 class="font-semibold">Novo atendimento</h3>
+          <label class="l">Tipo</label>
+          <select name="tipo" class="i"><option>Triagem Inicial</option><option>Consulta Didática (Preceptor + Aluno)</option><option>Retorno / Acompanhamento</option><option>Exame Prático</option></select>
+          <label class="l">Paciente</label><select name="paciente_id" id="s-pac" required class="i"></select>
+          <label class="l">Especialidade</label><select name="especialidade_id" id="s-esp" required class="i"></select>
+          <label class="l">Profissional</label><select name="profissional_id" id="s-prof" required class="i"></select>
+          <label class="l">Data e hora</label><input name="data_hora" type="datetime-local" required class="i">
+          <label class="l">Observações</label><textarea name="observacoes" rows="2" class="i"></textarea>
+          <button class="b w-full mt-4">Confirmar agendamento</button>
+        </form>
+        <div class="c lg:col-span-2 overflow-x-auto">
+          <select id="fs" onchange="renderAtd()" class="i mb-3 sm:w-48 noprint"><option value="">Todos os status</option><option>Agendado</option><option>Concluído</option><option>Cancelado</option></select>
+          <table class="w-full text-sm"><thead><tr><th>Quando</th><th>Paciente</th><th>Tipo</th><th>Profissional</th><th>Status</th><th class="noprint"></th></tr></thead><tbody id="l-atd"></tbody></table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+// ====== CONFIGURAÇÃO: cole aqui os dados do seu projeto Supabase (Project Settings > API) ======
+const SUPABASE_URL = 'https://ejngxoblejneojqszxyu.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_ZEJUUf1vQuIo48aWn0gUog_Wy9LVmm_';
+// ================================================================================================
+
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const dt = x => new Date(x).toLocaleString('pt-BR', {dateStyle:'short', timeStyle:'short'});
+const idade = d => Math.floor((Date.now() - new Date(d)) / 31557600000);
+const maskCpf = v => v.replace(/\D/g,'').slice(0,11).replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d{1,2})$/,'$1-$2');
+const cpfOk = c => { c = c.replace(/\D/g,''); if (c.length != 11 || /^(\d)\1+$/.test(c)) return false;
+  for (let t = 9; t < 11; t++) { let s = 0; for (let i = 0; i < t; i++) s += c[i] * (t + 1 - i); if ((s * 10 % 11) % 10 != c[t]) return false; } return true; };
+const opts = (arr, fn) => arr.map(x => `<option value="${x.id}">${esc(fn(x))}</option>`).join('');
+const del = id => `<button onclick="excluir(this.dataset.t,${id})" data-t="@" class="text-red-500 text-xs noprint">Excluir</button>`;
+const stCor = {Agendado:'bg-sky-100 text-sky-700', 'Concluído':'bg-emerald-100 text-emerald-700', Cancelado:'bg-red-100 text-red-700'};
+let D = {esp:[], prof:[], pac:[], atd:[]};
+
+function toast(msg, erro) {
+  const t = document.createElement('div');
+  t.className = (erro ? 'bg-red-600' : 'bg-emerald-600') + ' text-white px-4 py-3 rounded-xl shadow-lg text-sm';
+  t.textContent = msg; $('toasts').appendChild(t); setTimeout(() => t.remove(), 3500);
+}
+
+// ---- Login ----
+$('lf').onsubmit = async e => {
+  e.preventDefault();
+  const {error} = await db.auth.signInWithPassword({email: $('em').value, password: $('pw').value});
+  if (error) return toast('Login inválido. Verifique e-mail e senha.', 1);
+  entrar();
+};
+async function entrar() {
+  const {data} = await db.auth.getUser();
+  $('ue').textContent = data.user?.email || '';
+  $('login').classList.add('hidden'); $('app').classList.remove('hidden');
+  carregar();
+}
+async function sair() { await db.auth.signOut(); location.reload(); }
+db.auth.getSession().then(({data}) => { if (data.session) entrar(); });
+
+// ---- Abas ----
+document.querySelectorAll('.nav').forEach(b => b.onclick = () => {
+  document.querySelectorAll('.nav').forEach(x => x.classList.toggle('on', x === b));
+  document.querySelectorAll('.tab').forEach(s => s.classList.toggle('hidden', s.id !== 't-' + b.dataset.t));
+});
+
+// ---- Dados ----
+async function carregar() {
+  const r = await Promise.all([
+    db.from('especialidades').select('*').order('nome'),
+    db.from('profissionais').select('*, especialidades(nome)').order('nome'),
+    db.from('pacientes').select('*').order('nome'),
+    db.from('atendimentos').select('*, pacientes(nome), especialidades(nome), profissionais(nome)').order('data_hora')
+  ]);
+  const falha = r.find(x => x.error);
+  if (falha) return toast('Erro ao carregar: ' + falha.error.message, 1);
+  D = {esp:r[0].data, prof:r[1].data, pac:r[2].data, atd:r[3].data};
+  render();
+}
+
+function render() {
+  // painel
+  const hoje = new Date().toDateString();
+  $('k1').textContent = D.pac.length; $('k2').textContent = D.prof.length;
+  $('k3').textContent = D.atd.filter(a => new Date(a.data_hora).toDateString() === hoje && a.status !== 'Cancelado').length;
+  $('k4').textContent = D.atd.filter(a => a.status === 'Agendado').length;
+  const prox = D.atd.filter(a => a.status === 'Agendado' && new Date(a.data_hora) >= new Date()).slice(0, 5);
+  $('l-prox').innerHTML = prox.map(a => `<tr><td>${dt(a.data_hora)}</td><td>${esc(a.pacientes?.nome)}</td><td>${esc(a.especialidades?.nome)}</td><td>${esc(a.profissionais?.nome)}</td></tr>`).join('')
+    || '<tr><td colspan="4" class="text-slate-400">Nenhum atendimento futuro.</td></tr>';
+  // especialidades
+  $('l-esp').innerHTML = D.esp.map(e => `<tr><td class="font-medium">${esc(e.nome)}</td><td>${esc(e.unidade)}</td><td class="text-slate-500">${esc(e.descricao) || '-'}</td><td>${del(e.id).replace('@','especialidades')}</td></tr>`).join('');
+  // profissionais
+  $('g-prof').innerHTML = D.prof.map(p => `<div class="c text-center">
+    <div class="w-16 h-16 mx-auto rounded-full bg-sky-100 text-sky-700 grid place-items-center text-xl font-bold">${esc(p.nome.replace(/^(Dr|Dra)\.?\s/,'').slice(0,1))}</div>
+    <h4 class="font-bold mt-2">${esc(p.nome)}</h4>
+    <span class="text-xs bg-sky-50 text-sky-700 px-2 py-1 rounded-full">${esc(p.tipo)} • ${esc(p.registro)}</span>
+    <p class="text-sm text-slate-600 mt-2">${esc(p.especialidades?.nome) || 'Sem especialidade'}</p>
+    <p class="text-xs text-slate-400">${esc(p.horario)}</p>
+    <div class="mt-2">${del(p.id).replace('@','profissionais')}</div></div>`).join('');
+  renderPac(); renderAtd();
+  // selects
+  $('s-prof-esp').innerHTML = opts(D.esp, e => e.nome);
+  $('s-esp').innerHTML = opts(D.esp, e => e.nome);
+  $('s-pac').innerHTML = opts(D.pac, p => p.nome);
+  $('s-prof').innerHTML = opts(D.prof, p => `${p.nome} (${p.especialidades?.nome || '-'})`);
+}
+
+function renderPac() {
+  const q = $('q').value.toLowerCase();
+  const lista = D.pac.filter(p => p.nome.toLowerCase().includes(q) || p.cpf.includes(q));
+  $('l-pac').innerHTML = lista.map(p => `<tr><td class="font-medium">${esc(p.nome)}</td><td>${esc(p.cpf)}</td><td>${idade(p.data_nascimento)} anos</td><td>${esc(p.telefone) || '-'}</td><td>${del(p.id).replace('@','pacientes')}</td></tr>`).join('')
+    || '<tr><td colspan="5" class="text-slate-400">Nenhum paciente encontrado.</td></tr>';
+}
+
+function renderAtd() {
+  const f = $('fs').value;
+  const lista = D.atd.filter(a => !f || a.status === f);
+  $('l-atd').innerHTML = lista.map(a => `<tr><td>${dt(a.data_hora)}</td><td class="font-medium">${esc(a.pacientes?.nome)}</td>
+    <td class="text-xs">${esc(a.tipo)}<br><span class="text-slate-400">${esc(a.especialidades?.nome)}</span></td><td>${esc(a.profissionais?.nome)}</td>
+    <td><select onchange="mudarStatus(${a.id},this.value)" class="text-xs rounded-md px-2 py-1 ${stCor[a.status]}">
+      ${['Agendado','Concluído','Cancelado'].map(s => `<option ${s === a.status ? 'selected' : ''}>${s}</option>`).join('')}</select></td>
+    <td>${del(a.id).replace('@','atendimentos')}</td></tr>`).join('')
+    || '<tr><td colspan="6" class="text-slate-400">Nenhum atendimento.</td></tr>';
+}
+
+// ---- Gravar / excluir ----
+async function inserir(tabela, obj, msg, dup, form) {
+  const {error} = await db.from(tabela).insert(obj);
+  if (error) return toast(error.code === '23505' ? (dup || 'Registro duplicado.') : error.message, 1);
+  form.reset(); toast(msg); carregar();
+}
+function salvar(e, tabela, msg, dup) {
+  e.preventDefault();
+  const o = Object.fromEntries(new FormData(e.target));
+  if (o.especialidade_id) o.especialidade_id = +o.especialidade_id;
+  inserir(tabela, o, msg, dup, e.target);
+}
+function salvarPaciente(e) {
+  e.preventDefault();
+  const o = Object.fromEntries(new FormData(e.target));
+  if (!cpfOk(o.cpf)) return toast('CPF inválido.', 1);
+  inserir('pacientes', o, 'Paciente cadastrado!', 'Já existe paciente com esse CPF.', e.target);
+}
+function salvarAtendimento(e) {
+  e.preventDefault();
+  const o = Object.fromEntries(new FormData(e.target));
+  ['paciente_id','especialidade_id','profissional_id'].forEach(k => o[k] = +o[k]);
+  o.data_hora = new Date(o.data_hora).toISOString();
+  inserir('atendimentos', o, 'Atendimento agendado!', 'Esse profissional já tem atendimento nesse horário.', e.target);
+}
+async function mudarStatus(id, status) {
+  const {error} = await db.from('atendimentos').update({status}).eq('id', id);
+  if (error) return toast(error.message, 1);
+  toast('Status atualizado.'); carregar();
+}
+async function excluir(tabela, id) {
+  if (!confirm('Excluir este registro?')) return;
+  const {error} = await db.from(tabela).delete().eq('id', id);
+  if (error) return toast(error.code === '23503' ? 'Não dá para excluir: existem registros vinculados.' : error.message, 1);
+  toast('Registro excluído.'); carregar();
+}
+</script>
+</body>
+</html>
